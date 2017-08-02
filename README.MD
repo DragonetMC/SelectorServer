@@ -4,6 +4,8 @@ Selector Server
 A very light-weight server selection server software working under BungeeCord. 
 It will automatically fetch the server list from BungeeCord. 
 
+![screenshot](https://github.com/DragonetMC/SelectorServer/raw/master/assets/screenshot.jpg)
+
 ## How Light-Weight?
 It: 
 - have *NO* server ticks: NO more CPU eatting
