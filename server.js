@@ -2,7 +2,8 @@
 // port binding
 const listen_host = "127.0.0.1";
 const listen_port = "25570";
-// translation replacement
+// server list and lore settings
+// use "\u00a7" for color prefix
 const menu_map = {
    "Category 1": [["LORE1", "LORE2"], {
        "Server 1": [["LORE1", "LORE2"], "server-1"],
