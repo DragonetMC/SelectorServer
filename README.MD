@@ -11,7 +11,8 @@ It:
 - have *NO* server ticks: NO more CPU eatting
 - *NO* map caching: even blank chunks do cost RAM usage in Spigot/Bukkit servers
 - *LESS* networking: won't process packets except for joining and inventory packets
-- configure only *ONCE*: just edit BungeeCord settings and reload BungeeCord
+- configure only *ONCE*(auto-fetch): just edit BungeeCord settings and reload BungeeCord
+** note: If you choose the version supporting sub-menu and lores, you'll have to manually set the server list. **
 
 Standby RAM usage around 60MB, almost no CPU usage. 
 It can also *fight against* some join bots! 
@@ -23,7 +24,7 @@ cd path/to/this/repo
 npm install minecraft-protocol
 node server.js
 ```
-## Configuration
+## Configuration(for auto-fetch version)
 To configure it, simply open `server.js`, and edit stuffs: 
 ```javascript
 /* ==== SETTINGS AREA ==== */
