@@ -62,7 +62,9 @@ server.on('login', function(client) {
   });
   client.sendChat(message_loading);
   client.on("close_window", function(){
-      client.end(message_error_exit);
+    client.parentMenu == null;
+    client.currentMenu = menu_map;
+    updateClient(client);
   });
   
   client.on("window_click", function(packet){
@@ -79,7 +81,9 @@ server.on('login', function(client) {
         client.end(message_bye);
         return;
       }
-      var target = client.currentMenu[Object.keys(client.currentMenu)[slot]][1];
+      var selected = client.currentMenu[Object.keys(client.currentMenu)[slot]];
+      if (selected == undefined || selected == null) return; 
+      var target = selected[1];
       if(target == null) return;
       if(type(target) == "string") {
         console.log("Transfering player [" + client.username + "] to server <" + target + ">... ");
