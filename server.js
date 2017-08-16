@@ -38,7 +38,6 @@ const message_bye = "Bye! ";
 const type = require("type-detect");
 
 const mc = require('minecraft-protocol');
-const console = require('console');
 const server = mc.createServer({
   'online-mode': false,   // optional
   encryption: true,      // optional
