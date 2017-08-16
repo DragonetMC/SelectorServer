@@ -10,6 +10,7 @@ const force_selection = true;
 
 // server list and lore settings
 // use "\u00a7" for color prefix
+// format "Display Name": [ITEM_ID, [LORES], {sub-menu} or "server-name"]
 const menu_map = {
    "Category 1": [1, ["LORE1", "LORE2"], {
        "Server 1": [1, ["LORE1", "LORE2"], "server-1"],
