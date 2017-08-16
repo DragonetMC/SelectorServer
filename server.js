@@ -2,18 +2,24 @@
 // port binding
 const listen_host = "127.0.0.1";
 const listen_port = "25570";
+
+// force player to join? 
+// true: can't quit by pressing ESC or E
+// false: disconnect when pressed ESC or E
+const force_selection = true;
+
 // server list and lore settings
 // use "\u00a7" for color prefix
 const menu_map = {
-   "Category 1": [["LORE1", "LORE2"], {
-       "Server 1": [["LORE1", "LORE2"], "server-1"],
-       "Server 2": [["LORE1", "LORE2"], "server-2"],
-       "Sub-Category": [["LORE1", "LORE2"], {
-           "Server BLAH": [["LORE1", "LORE2"], "blah"]
+   "Category 1": [1, ["LORE1", "LORE2"], {
+       "Server 1": [1, ["LORE1", "LORE2"], "server-1"],
+       "Server 2": [1, ["LORE1", "LORE2"], "server-2"],
+       "Sub-Category": [2, ["LORE1", "LORE2"], {
+           "Server BLAH": [2, ["LORE1", "LORE2"], "blah"]
        }]
    }],
-   "Category 2": [["LORE1", "LORE2"], {
-       "Some Server": [["LORE1", "LORE2"], "server-other"]
+   "Category 2": [2, ["LORE1", "LORE2"], {
+       "Some Server": [2, ["LORE1", "LORE2"], "server-other"]
    }]
 };
 // item settings
@@ -62,9 +68,13 @@ server.on('login', function(client) {
   });
   client.sendChat(message_loading);
   client.on("close_window", function(){
-    client.parentMenu == null;
-    client.currentMenu = menu_map;
-    updateClient(client);
+    if (force_selection) {
+      client.parentMenu == null;
+      client.currentMenu = menu_map;
+      updateClient(client);
+    } else {
+      client.end(message_error_exit);
+    }
   });
   
   client.on("window_click", function(packet){
@@ -83,7 +93,7 @@ server.on('login', function(client) {
       }
       var selected = client.currentMenu[Object.keys(client.currentMenu)[slot]];
       if (selected == undefined || selected == null) return; 
-      var target = selected[1];
+      var target = selected[2];
       if(target == null) return;
       if(type(target) == "string") {
         console.log("Transfering player [" + client.username + "] to server <" + target + ">... ");
@@ -120,11 +130,7 @@ function updateClient(client){
   var items = [];
   var items_i = 0;
   for(var label in client.currentMenu) {
-    var item_id = item_server;
-    if (type(client.currentMenu[label][1]) != "string") {
-      item_id = item_category;
-    }
-    items.push(generateItem(item_id, label, client.currentMenu[label][0]));
+    items.push(generateItem(client.currentMenu[label][0], label, client.currentMenu[label][1]));
     items_i ++;
   }
   client.functionalSlots = [slots_desired - 2, slots_desired - 1];
