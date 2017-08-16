@@ -4,16 +4,16 @@ const listen_host = "127.0.0.1";
 const listen_port = "25570";
 // translation replacement
 const menu_map = {
-   "Category 1": {
-       "Server 1": "server-1",
-       "Server 2": "server-2",
-       "Sub-Category": {
-           "Server BLAH": "blah"
-       }
-   },
-   "Category 2": {
-       "Some Server": "server-other"
-   }
+   "Category 1": [["LORE1", "LORE2"], {
+       "Server 1": [["LORE1", "LORE2"], "server-1"],
+       "Server 2": [["LORE1", "LORE2"], "server-2"],
+       "Sub-Category": [["LORE1", "LORE2"], {
+           "Server BLAH": [["LORE1", "LORE2"], "blah"]
+       }]
+   }],
+   "Category 2": [["LORE1", "LORE2"], {
+       "Some Server": [["LORE1", "LORE2"], "server-other"]
+   }]
 };
 // item settings
 const item_server = 3;
@@ -78,7 +78,7 @@ server.on('login', function(client) {
         client.end(message_bye);
         return;
       }
-      var target = client.currentMenu[Object.keys(client.currentMenu)[slot]];
+      var target = client.currentMenu[Object.keys(client.currentMenu)[slot]][1];
       if(target == null) return;
       if(type(target) == "string") {
         console.log("Transfering player [" + client.username + "] to server <" + target + ">... ");
@@ -116,24 +116,24 @@ function updateClient(client){
   var items_i = 0;
   for(var label in client.currentMenu) {
     var item_id = item_server;
-    if (type(client.currentMenu[label]) != "string") {
+    if (type(client.currentMenu[label][1]) != "string") {
       item_id = item_category;
     }
-    items.push(generateItem(item_id, label));
+    items.push(generateItem(item_id, label, client.currentMenu[label][0]));
     items_i ++;
   }
   client.functionalSlots = [slots_desired - 2, slots_desired - 1];
   for(var i = items_i; i < slots_desired; i++) {
     if (i == client.functionalSlots[0]) {
       if(client.parentMenu.length != 0) {
-        items[i] = generateItem(item_functional, "<< BACK");
+        items[i] = generateItem(item_functional, "<< BACK", []);
       } else {
         items[i] = generateSpaceItem();
       }
       continue;
     }
     if (i == client.functionalSlots[1]) {
-      items[i] = generateItem(item_functional, "X QUIT");
+      items[i] = generateItem(item_functional, "X QUIT", []);
       continue;
     }
     items[i] = generateSpaceItem();
@@ -179,7 +179,23 @@ function transferPlayer(client, target) {
   });
 }
 
-function generateItem(id, label) {
+function generateItem(id, label, lores) {
+  var displayValue = {
+              "Name": {
+                type: "string",
+                value: "\u00a7f" + label
+              }
+            };
+  
+  if (lores != undefined && lores != null && type(lores) == "Array") {
+    displayValue["Lore"] = {
+                type: "list",
+                value: {
+                  type: "string",
+                  value: lores
+                }};
+  }
+            
   return {
       blockId: id,
       itemCount: 1,
@@ -190,12 +206,7 @@ function generateItem(id, label) {
         value: {
           "display": {
             type: "compound",
-            value: {
-              "Name": {
-                type: "string",
-                value: "\u00a7f" + label
-              },
-            }
+            value: displayValue
           }
         }
       }
@@ -203,5 +214,5 @@ function generateItem(id, label) {
 }
 
 function generateSpaceItem() {
-  return generateItem(0, "");
+  return generateItem(0, "", []);
 }
