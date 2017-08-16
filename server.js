@@ -176,7 +176,7 @@ function transferPlayer(client, target) {
   // offset += target.length;
   client.write("custom_payload", {
     channel: "BungeeCord",
-    ata: buff_connect
+    data: buff_connect
   });
 }
 
