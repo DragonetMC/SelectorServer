@@ -3,17 +3,31 @@
 const listen_host = "127.0.0.1";
 const listen_port = "25570";
 // translation replacement
-const replacements = {
-  "survival": "SOME TRANSLATION",
-  "creative": "SOME TRANSLATION",
+const menu_map = {
+   "Category 1": {
+       "Server 1": "server-1",
+       "Server 2": "server-2",
+       "Sub-Category": {
+           "Server BLAH": "blah"
+       }
+   },
+   "Category 2": {
+       "Some Server": "server-other"
+   }
 };
+// item settings
+const item_server = 3;
+const item_category = 4;
+const item_functional = 2;
 // messages
 const message_loading = '\u00a7aLoading... ';
 const menu_title = "\u00a70Choose a server";
-const message_fetching = "\u00a7bFetching information... ";
 const message_error_exit = "You didn't select a server to join! ";
+const message_bye = "Bye! ";
 
 /* == END OF SETTINGS AREA == */
+
+const type = require("type-detect");
 
 const mc = require('minecraft-protocol');
 const console = require('console');
@@ -23,45 +37,11 @@ const server = mc.createServer({
   host: listen_host,       // optional
   port: listen_port,           // optional
 });
-const buff_getservers = new Buffer(12);
-buff_getservers.writeUInt16BE(10, 0);
-buff_getservers.write("GetServers", 2, 10, "utf8");
-const buff_currentserver = new Buffer(11);
-buff_currentserver.writeUInt16BE(9, 0);
-buff_currentserver.write("GetServer", 2, 9, "utf8");
 
 console.log("Server is now started! ");
 
 server.on('login', function(client) {
   modifyClient(client);
-  client.on("custom_payload", function(packet) {
-      if (packet.channel != "BungeeCord") return;
-      var buff = packet.data;
-      var offset = 0;
-      var len = buff.readUInt16BE(offset); 
-      offset += 2;
-      var subchannel = buff.toString("utf-8", offset, offset+len);
-      offset += len;
-      if (subchannel == "GetServer") {
-        len = buff.readUInt16BE(offset); 
-        offset += 2;
-        var current_server = buff.toString("utf-8", offset, offset+len);
-        client.current_server = current_server;
-        client.sendChat(' -- ' + message_fetching + ' (2)... ');
-        client.write("custom_payload", {
-          channel: "BungeeCord",
-          data: buff_getservers
-        });
-      } else if(subchannel == "GetServers") {
-        len = buff.readUInt16BE(offset); 
-        offset += 2;
-        var servers = buff.toString("utf-8", offset, offset+len).split(", ").filter(function(compare) {
-          return compare != client.current_server;
-        });
-        client.servers = servers;
-        updateClient(client);
-      }
-  });
   client.write('login', {
     entityId: 0,
     levelType: 'default',
@@ -83,34 +63,125 @@ server.on('login', function(client) {
   client.on("close_window", function(){
       client.end(message_error_exit);
   });
-  setTimeout(function(){
-    client.sendChat(' -- \u00a7b' + message_fetching + ' (1)... ');
-    client.write("custom_payload", {
-      channel: "BungeeCord",
-      data: buff_currentserver
-    });
-  }, 500);
+  
+  client.on("window_click", function(packet){
+      var slot = packet.slot;
+      if (slot == client.functionalSlots[0]) {
+        if(client.parentMenu.length == 0) {
+          return;
+        }
+        client.currentMenu = client.parentMenu.pop();
+        updateClient(client);
+        return;
+      }
+      if (slot == client.functionalSlots[1]) {
+        client.end(message_bye);
+        return;
+      }
+      var target = client.currentMenu[Object.keys(client.currentMenu)[slot]];
+      if(target == null) return;
+      if(type(target) == "string") {
+        console.log("Transfering player [" + client.username + "] to server <" + target + ">... ");
+        transferPlayer(client, target);
+      } else {
+        client.currentMenuLabel = Object.keys(client.currentMenu)[slot];
+        client.parentMenu.push(client.currentMenu);
+        client.currentMenu = target;
+        updateClient(client);
+      }
+  });
+  
+  updateClient(client);
 });
 
 function updateClient(client){ 
-  var servers = client.servers;
-  var current_server_index = servers.indexOf(client.current_server);
-  var slots_desired = ((servers.length / 9) + 1) * 9;
+  // close opened window first
+  if(client.windowOpened) {
+    client.write("close_window", {
+      windowId: 10
+    });
+    // keep that set to true
+  }
+  
+  client.windowOpened = true;
+  var slots_desired = ((parseInt(Object.keys(client.currentMenu).length / 9)) + 1) * 9;
   client.write("open_window", {
       windowId: 10,
       inventoryType: "minecraft:chest", 
-      windowTitle: JSON.stringify(menu_title),
+      windowTitle: JSON.stringify(menu_title + (client.parentMenu.length == 0 ? "" : (" - " + client.currentMenuLabel))),
       slotCount: slots_desired,
       entityId: 0
   });
   var items = [];
-  for(var i = 0; i < servers.length; i++) {
-    var translated_server_name = servers[i];
-    for(var key in replacements) {
-      translated_server_name = translated_server_name.replace(key, replacements[key]);
+  var items_i = 0;
+  for(var label in client.currentMenu) {
+    var item_id = item_server;
+    if (type(client.currentMenu[label]) != "string") {
+      item_id = item_category;
     }
-    items.push({
-      blockId: 1,
+    items.push(generateItem(item_id, label));
+    items_i ++;
+  }
+  client.functionalSlots = [slots_desired - 2, slots_desired - 1];
+  for(var i = items_i; i < slots_desired; i++) {
+    if (i == client.functionalSlots[0]) {
+      if(client.parentMenu.length != 0) {
+        items[i] = generateItem(item_functional, "<< BACK");
+      } else {
+        items[i] = generateSpaceItem();
+      }
+      continue;
+    }
+    if (i == client.functionalSlots[1]) {
+      items[i] = generateItem(item_functional, "X QUIT");
+      continue;
+    }
+    items[i] = generateSpaceItem();
+  } 
+  
+  client.write("window_items", {
+      windowId: 10,
+      items: items
+  });
+}
+
+function modifyClient(client) {
+  client.windowOpened = false;
+  client.currentMenu = menu_map;
+  client.currentMenuLabel = null;
+  client.parentMenu = [];
+  client.functionalSlots = []; // back, exit
+  client.sendChat = function(message){
+    var msg = {
+    translate: 'chat.type.announcement',
+    "with": [
+      message
+    ]
+    };
+    client.write("chat", { message: JSON.stringify(msg), position: 0 });
+  };
+}
+
+function transferPlayer(client, target) {
+  var buff_connect = new Buffer(2+7+2+target.length);
+  var offset = 0;
+  buff_connect.writeUInt16BE(7, offset);
+  offset += 2;
+  buff_connect.write("Connect", offset, encoding="utf8");
+  offset += 7;
+  buff_connect.writeUInt16BE(target.length, offset);
+  offset += 2;
+  buff_connect.write(target, offset, target.length, "utf8");
+  // offset += target.length;
+  client.write("custom_payload", {
+    channel: "BungeeCord",
+    ata: buff_connect
+  });
+}
+
+function generateItem(id, label) {
+  return {
+      blockId: id,
       itemCount: 1,
       itemDamage: 0,
       nbtData: {
@@ -122,50 +193,15 @@ function updateClient(client){
             value: {
               "Name": {
                 type: "string",
-                value: "\u00a7f" + translated_server_name
+                value: "\u00a7f" + label
               },
             }
           }
         }
       }
-    });
-  }
-  
-  client.write("window_items", {
-      windowId: 10,
-      items: items
-  });
-  
-  client.on("window_click", function(packet){
-      var slot = packet.slot;
-      var target = client.servers[slot];
-      if(target == null) return;
-      console.log("Transfering player [" + client.username + "] to server <" + target + ">... ");
-      var buff_connect = new Buffer(2+7+2+target.length);
-      var offset = 0;
-      buff_connect.writeUInt16BE(7, offset);
-      offset += 2;
-      buff_connect.write("Connect", offset, encoding="utf8");
-      offset += 7;
-      buff_connect.writeUInt16BE(target.length, offset);
-      offset += 2;
-      buff_connect.write(target, offset, target.length, "utf8");
-      // offset += target.length;
-      client.write("custom_payload", {
-        channel: "BungeeCord",
-        data: buff_connect
-      });
-  });
+    }
 }
 
-function modifyClient(client) {
-  client.sendChat = function(message){
-    var msg = {
-    translate: 'chat.type.announcement',
-    "with": [
-      message
-    ]
-    };
-    client.write("chat", { message: JSON.stringify(msg), position: 0 });
-  };
+function generateSpaceItem() {
+  return generateItem(0, "");
 }
