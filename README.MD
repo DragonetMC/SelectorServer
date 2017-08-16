@@ -21,9 +21,11 @@ It can also *fight against* some join bots!
 To use it, install NodeJS and run:
 ```
 cd path/to/this/repo
-npm install minecraft-protocol
+npm install minecraft-protocol type-detect
 node server.js
 ```
+** note: Ignore `type-detect` if you are using auto-fetch version. **
+
 ## Configuration(for auto-fetch version)
 To configure it, simply open `server.js`, and edit stuffs: 
 ```javascript
